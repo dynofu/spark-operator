@@ -1,11 +1,12 @@
 apiVersion: radanalytics.io/v1
 kind: SparkApplication
 metadata:
-  name: my-spark-app
+  name: sparky-app
 spec:
-  image: quay.io/jkremser/openshift-spark:2.3-latest
-  mainApplicationFile: local:///opt/spark/examples/jars/spark-examples_2.11-2.3.0.jar
+  image: quay.io/signifyd/openshift-spark:2.4-latest
+  mainApplicationFile: local:///opt/spark/examples/jars/spark-examples_2.11-2.4.4.jar
   mainClass: org.apache.spark.examples.SparkPi
+  type: Java
   sleep: 300 # repeat each 5 minutes
   driver:
     cores: 0.2

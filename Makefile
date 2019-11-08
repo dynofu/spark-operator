@@ -77,3 +77,12 @@ local-travis-tests: build
 	-BIN=oc CRD=0 MANIFEST_SUFIX="-test" .travis/.travis.test-restarts.sh || true
 	-BIN=oc CRD=0 MANIFEST_SUFIX="-test" .travis/.travis.test-cross-ns.sh || true
 	-rm manifest/operator-test.yaml || true
+
+.PHONY: deploy-sparky delete-sparky apply-sparky
+deploy-sparky: delete-sparky apply-sparky
+delete-sparky:
+	kubectl delete -f examples/app.yaml
+	kubectl delete -f examples/cluster-with-config.yaml
+apply-sparky:
+	kubectl apply -f examples/cluster-with-config.yaml
+	kubectl apply -f examples/app.yaml
