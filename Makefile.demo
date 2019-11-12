@@ -43,7 +43,7 @@ apply-app:
 .PHONY: log-app
 log-app:
 	 kubectl get pod -l radanalytics.io/SparkApplication=sparky-app -l spark-role=driver --no-headers | \
-	   awk '{print $1;}' |                                                                              \
+	   awk '{print $$1;}' | head -n 1 |                                                                 \
 	   xargs kubectl logs                                                                               \
 	 # END
 
