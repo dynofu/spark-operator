@@ -1,0 +1,70 @@
+SHELL = /bin/bash
+
+SPARK_NAMESPACE := spark-operator
+
+# ------------------------------------------------------------------------------
+OPERATOR := manifest/operator.yaml
+operator:
+	kubectl create namespace $(SPARK_NAMESPACE) || true
+	kubens $(SPARK_NAMESPACE)
+	# XXX: serviceaccount spark-operator is created in namespace spark-operator.
+	yq 'select(.kind=="ClusterRoleBinding").subjects[0].namespace="$(SPARK_NAMESPACE)"' $(OPERATOR) | \
+	  kubectl apply -f -                                                                              \
+	# END
+
+
+# ------------------------------------------------------------------------------
+#  XXX: use quay.io/signifyd/openshift-spark:2.4-latest
+CLUSTER := examples/cluster-with-config.yaml
+CLUSTER_NAME := $(shell yq -r .metadata.name $(CLUSTER))
+
+cluster:
+	kubectl apply -f $(CLUSTER)
+	kubectl get sparkcluster
+
+delete-cluster:
+	kubectl delete -f $(CLUSTER)
+
+
+# ------------------------------------------------------------------------------
+APP := examples/app.yaml
+# APP := examples/test/cm/app.yaml
+APP_NAME := $(shell yq -r .metadata.name $(APP))
+
+.PHONY: delete-app
+delete-app:
+	kubectl delete -f $(APP)
+
+.PHONY: apply-app
+apply-app:
+	kubectl apply -f $(APP)
+	kubectl get sparkapplication
+
+.PHONY: log-app
+log-app:
+	 kubectl get pod -l radanalytics.io/SparkApplication=sparky-app -l spark-role=driver --no-headers | \
+	   awk '{print $1;}' |                                                                              \
+	   xargs kubectl logs                                                                               \
+	 # END
+
+
+# ------------------------------------------------------------------------------
+export SPARK_HOME := $(HOME)/local/spark-2.4.4-bin-hadoop2.7
+
+expose-service:
+	kubectl expose rs/$(CLUSTER_NAME)-m
+	minikube service $(CLUSTER_NAME)-m -n $(SPARK_NAMESPACE) --url
+
+spark-shell:
+	kube_cluster_ip=$$(minikube ip);                                                                              \
+	nodeport=$$(kubectl get svc/sparky-cluster-m -o json | jq '.spec.ports[] | select(.port==7077) | .nodePort'); \
+		 PATH=$(SPARK_HOME)/bin/:$$PATH spark-shell                                                           \
+		 --master spark://$${kube_cluster_ip}:$${nodeport}                                                    \
+	# END
+
+pyspark:
+	kube_cluster_ip=$$(minikube ip);                                                                              \
+	nodeport=$$(kubectl get svc/sparky-cluster-m -o json | jq '.spec.ports[] | select(.port==7077) | .nodePort'); \
+	export SPARK_MASTER=spark://$${kube_cluster_ip}:$${nodeport};                                                 \
+	jupyter notebook kube_spark.ipynb                                                                             \
+	# END
